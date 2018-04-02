@@ -13,7 +13,7 @@ public class SparkKryoHTMRegistrator implements KryoRegistrator {
         // the rest HTM.java internal classes support Persistence API (with preSerialize/postDeserialize methods),
         // therefore we'll create the seralizers which will use HTMObjectInput/HTMObjectOutput (wrappers on top of fast-serialization)
         // which WILL call the preSerialize/postDeserialize
-        SparkKryoHTMKSerializer.registerSerializers(kryo);
+        SparkKryoHTMSerializer.registerSerializers(kryo);
 
         //TODO : We should register the top level classes with kryo
         throw new UnsupportedOperationException("We should register the top level classes with kryo");
