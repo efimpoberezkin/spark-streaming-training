@@ -1,7 +1,7 @@
 package com.epam.bdcc.utils;
 
-import com.epam.bdcc.kafka.MonitoringRecordPartitioner;
 import com.epam.bdcc.serde.KafkaJsonMonitoringRecordSerDe;
+import org.apache.kafka.clients.producer.internals.DefaultPartitioner;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
@@ -40,7 +40,7 @@ public class PropertiesLoader {
                 kafkaProducerProperties.put(BUFFER_MEMORY_CONFIG, globalProperties.getProperty(BUFFER_MEMORY_CONFIG));
                 kafkaProducerProperties.put(KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
                 kafkaProducerProperties.put(VALUE_SERIALIZER_CLASS_CONFIG, KafkaJsonMonitoringRecordSerDe.class);
-                kafkaProducerProperties.put(PARTITIONER_CLASS_CONFIG, MonitoringRecordPartitioner.class);
+                kafkaProducerProperties.put(PARTITIONER_CLASS_CONFIG, DefaultPartitioner.class);
 
                 kafkaConsumerProperties.put(BOOTSTRAP_SERVERS_CONFIG, globalProperties.getProperty(BOOTSTRAP_SERVERS_CONFIG));
                 kafkaConsumerProperties.put(GROUP_ID_CONFIG, globalProperties.getProperty(GROUP_ID_CONFIG));
