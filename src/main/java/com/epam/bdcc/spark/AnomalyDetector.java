@@ -52,13 +52,14 @@ public class AnomalyDetector implements GlobalConstants {
                 SparkConf conf = new SparkConf().setMaster("local[2]").setAppName(appName);
 
                 JavaStreamingContext jssc = new JavaStreamingContext(conf, batchDuration);
-                jssc.checkpoint(checkpointDir);
 
                 JavaInputDStream<ConsumerRecord<String, MonitoringRecord>> stream =
                         KafkaUtils.createDirectStream(
                                 jssc,
                                 LocationStrategies.PreferConsistent(),
                                 KafkaHelper.createConsumerStrategy(rawTopicName));
+
+                stream.checkpoint(checkpointInterval);
 
                 stream.map(record -> mappingFunc);
 
@@ -72,6 +73,7 @@ public class AnomalyDetector implements GlobalConstants {
                             });
                         }));
 
+                jssc.checkpoint(checkpointDir);
                 return jssc;
             };
 
