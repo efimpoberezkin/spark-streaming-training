@@ -48,7 +48,8 @@ public class AnomalyDetector implements GlobalConstants {
             final Duration checkpointInterval = Duration.apply(Long.parseLong(applicationProperties.getProperty(SPARK_CHECKPOINT_INTERVAL_CONFIG)));
 
             Function0<JavaStreamingContext> createContext = () -> {
-                SparkConf conf = new SparkConf().setMaster("local[2]").setAppName(appName);
+//                SparkConf conf = new SparkConf().setMaster("local[2]").setAppName(appName);
+                SparkConf conf = new SparkConf().setAppName(appName);
 
                 JavaStreamingContext jssc = new JavaStreamingContext(conf, batchDuration);
 
