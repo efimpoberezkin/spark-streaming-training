@@ -20,10 +20,6 @@ public class TopicGenerator implements GlobalConstants {
         // load a properties file from class path, inside static method
         Properties applicationProperties = PropertiesLoader.getGlobalProperties();
         if (!applicationProperties.isEmpty()) {
-            final boolean skipHeader = Boolean
-                    .parseBoolean(applicationProperties.getProperty(GENERATOR_SKIP_HEADER_CONFIG));
-            final long batchSleep = Long.parseLong(applicationProperties.getProperty(GENERATOR_BATCH_SLEEP_CONFIG));
-            final int batchSize = Integer.parseInt(applicationProperties.getProperty(BATCH_SIZE_CONFIG));
             final String sampleFile = applicationProperties.getProperty(GENERATOR_SAMPLE_FILE_CONFIG);
             final String topicName = applicationProperties.getProperty(KAFKA_RAW_TOPIC_CONFIG);
 
@@ -34,7 +30,7 @@ public class TopicGenerator implements GlobalConstants {
                 while ((line = reader.readLine()) != null) {
                     MonitoringRecord record = new MonitoringRecord(line.split(","));
                     ProducerRecord<String, MonitoringRecord> message
-                            = new ProducerRecord<>(topicName, KafkaHelper.getKey(record), record);
+                            = new ProducerRecord<>(topicName, record);
                     producer.send(message);
                 }
             }
