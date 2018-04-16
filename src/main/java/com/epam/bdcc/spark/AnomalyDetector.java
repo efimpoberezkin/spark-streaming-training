@@ -4,6 +4,7 @@ import com.epam.bdcc.htm.HTMNetwork;
 import com.epam.bdcc.htm.MonitoringRecord;
 import com.epam.bdcc.htm.ResultState;
 import com.epam.bdcc.kafka.KafkaHelper;
+import com.epam.bdcc.serde.SparkKryoHTMRegistrator;
 import com.epam.bdcc.utils.GlobalConstants;
 import com.epam.bdcc.utils.PropertiesLoader;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -15,12 +16,17 @@ import org.apache.spark.api.java.function.Function0;
 import org.apache.spark.api.java.function.Function3;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.State;
+import org.apache.spark.streaming.StateSpec;
+import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
+import org.apache.spark.streaming.api.java.JavaMapWithStateDStream;
+import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.kafka010.KafkaUtils;
 import org.apache.spark.streaming.kafka010.LocationStrategies;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
+import scala.Tuple2;
 
 import java.util.HashMap;
 import java.util.Properties;
@@ -47,37 +53,47 @@ public class AnomalyDetector implements GlobalConstants {
             final Duration batchDuration = Duration.apply(Long.parseLong(applicationProperties.getProperty(SPARK_BATCH_DURATION_CONFIG)));
             final Duration checkpointInterval = Duration.apply(Long.parseLong(applicationProperties.getProperty(SPARK_CHECKPOINT_INTERVAL_CONFIG)));
 
-            Function0<JavaStreamingContext> createContext = () -> {
-//                SparkConf conf = new SparkConf().setMaster("local[2]").setAppName(appName);
-                SparkConf conf = new SparkConf().setAppName(appName);
+            Function0<JavaStreamingContext> createContextFunc = () -> {
+                SparkConf conf = new SparkConf()
+                        .setMaster("local[2]")
+                        .setAppName(appName)
+                        .set(SPARK_INTERNAL_SERIALIZER_CONFIG, "org.apache.spark.serializer.KryoSerializer")
+                        .set(SPARK_KRYO_REGISTRATOR_CONFIG, SparkKryoHTMRegistrator.class.getName())
+                        .set(SPARK_KRYO_REGISTRATOR_REQUIRED_CONFIG, "true");
 
                 JavaStreamingContext jssc = new JavaStreamingContext(conf, batchDuration);
 
-                JavaInputDStream<ConsumerRecord<String, MonitoringRecord>> stream =
+                JavaInputDStream<ConsumerRecord<String, MonitoringRecord>> inputDStream =
                         KafkaUtils.createDirectStream(
                                 jssc,
                                 LocationStrategies.PreferConsistent(),
                                 KafkaHelper.createConsumerStrategy(rawTopicName));
 
-                stream.checkpoint(checkpointInterval);
+                JavaDStream<MonitoringRecord> rawRecords = inputDStream.map(ConsumerRecord::value);
 
-                stream.map(record -> mappingFunc);
+                JavaPairDStream<String, MonitoringRecord> recordsWithKeys = rawRecords.mapToPair(
+                        record -> new Tuple2<>(KafkaHelper.getKey(record), record));
 
-                stream.foreachRDD(rdd ->
-                        rdd.foreachPartition(partition -> {
-                            Producer<String, MonitoringRecord> producer = KafkaHelper.createProducer();
-                            partition.forEachRemaining(record -> {
-                                ProducerRecord<String, MonitoringRecord> message
-                                        = new ProducerRecord<>(enrichedTopicName, record.key(), record.value());
-                                producer.send(message);
-                            });
-                        }));
+                JavaMapWithStateDStream<String, MonitoringRecord, HTMNetwork, MonitoringRecord> mappedRecords
+                        = recordsWithKeys.mapWithState(StateSpec.function(mappingFunc));
+
+                mappedRecords.checkpoint(checkpointInterval);
+
+                mappedRecords.foreachRDD(rdd -> rdd.foreachPartition(partitionOfRecords -> {
+                    Producer<String, MonitoringRecord> producer = KafkaHelper.createProducer();
+                    partitionOfRecords.forEachRemaining(record -> {
+                        ProducerRecord<String, MonitoringRecord> producerRecord
+                                = new ProducerRecord<>(enrichedTopicName, KafkaHelper.getKey(record), record);
+                        producer.send(producerRecord);
+                    });
+                    producer.close();
+                }));
 
                 jssc.checkpoint(checkpointDir);
                 return jssc;
             };
 
-            JavaStreamingContext jssc = JavaStreamingContext.getOrCreate(checkpointDir, createContext);
+            JavaStreamingContext jssc = JavaStreamingContext.getOrCreate(checkpointDir, createContextFunc);
             jssc.start();
             jssc.awaitTermination();
         }

@@ -23,22 +23,19 @@ public class SparkKryoHTMSerializer<T> extends Serializer<T> {
 
     @Override
     public T copy(Kryo kryo, T original) {
-        //TODO : Add implementation for clone, if needed
-        throw new UnsupportedOperationException("Add implementation for close");
+        return kryo.copy(original);
     }
 
     @Override
     public void write(Kryo kryo, Output kryoOutput, T t) {
         HTMObjectOutput writer = null;
-        //TODO : Add implementation for serialization
-        throw new UnsupportedOperationException("Add implementation for serialization");
+        kryo.writeObject(kryoOutput, t);
     }
 
     @Override
     public T read(Kryo kryo, Input kryoInput, Class<T> aClass) {
         HTMObjectInput reader = null;
-        //TODO : Add implementation for deserialization
-        throw new UnsupportedOperationException("Add implementation for deserialization");
+        return kryo.readObject(kryoInput, aClass);
     }
 
     public static void registerSerializers(Kryo kryo) {

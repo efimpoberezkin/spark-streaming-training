@@ -1,7 +1,9 @@
 package com.epam.bdcc.serde;
 
+import com.epam.bdcc.htm.MonitoringRecord;
 import com.esotericsoftware.kryo.Kryo;
 import org.apache.spark.serializer.KryoRegistrator;
+import org.apache.spark.streaming.rdd.MapWithStateRDDRecord;
 
 public class SparkKryoHTMRegistrator implements KryoRegistrator {
 
@@ -15,7 +17,7 @@ public class SparkKryoHTMRegistrator implements KryoRegistrator {
         // which WILL call the preSerialize/postDeserialize
         SparkKryoHTMSerializer.registerSerializers(kryo);
 
-        //TODO : We should register the top level classes with kryo
-        throw new UnsupportedOperationException("We should register the top level classes with kryo");
+        kryo.register(MonitoringRecord.class, new SparkKryoHTMSerializer());
+        kryo.register(MapWithStateRDDRecord.class, new SparkKryoHTMSerializer());
     }
 }
